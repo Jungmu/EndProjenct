@@ -1,4 +1,4 @@
-# EndProjenct
+ï»¿# EndProjenct
 
-SDL ¹× ffmpeg µð·ºÅä¸®´Â D: ¿¡ µÎ°í °æ·Î¸¦ ¼³Á¤ÇØ¼­ »ç¿ëÇÏ¿´´Ù.
-°³¹ßÈ¯°æÀº À©µµ¿ì 8.1 ºñÁÖ¾ó ½ºÆ©µð¿À2013
+SDL ë° ffmpeg ë””ë ‰í† ë¦¬ëŠ” D: ì— ë‘ê³  ê²½ë¡œë¥¼ ì„¤ì •í•´ì„œ ì‚¬ìš©í•˜ì˜€ë‹¤.
+ê°œë°œí™˜ê²½ì€ ìœˆë„ìš° 8.1 ë¹„ì£¼ì–¼ ìŠ¤íŠœë””ì˜¤2013
