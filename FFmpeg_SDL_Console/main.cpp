@@ -6,6 +6,8 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <SDL.h>
 #include <SDL_thread.h>
+#include <windows.h>
+
 }
 
 #include <iostream>
@@ -25,6 +27,9 @@ extern "C" {
 #pragma comment( lib, "SDLmain.lib")
 #pragma comment( lib, "SDL.lib")
 
+//윈 소켓
+#pragma comment (lib,"ws2_32.lib")
+#define BUFFER_SIZE 1024
 
 // compatibility with newer API
 // 버전이 바뀌면서 달라진 점을 이렇게 커버하는 듯 하다.
@@ -81,7 +86,46 @@ int main(int argc, char *argv[]) {
 	//줌인 줌 아웃을 위한 변수
 	int rect_w = 0;
 	int rect_h = 0;
+
+	// 소켓
+
+	WSADATA   wsaData;
+
+	SOCKET   ClientSocket;
+	SOCKADDR_IN  ToServer;   
+	SOCKADDR_IN  FromServer;
+
+	int   FromServer_Size;
+	int   Recv_Size;   int   Send_Size;
+
+	char   Buffer[BUFFER_SIZE] = { "Message~" };
+	USHORT   ServerPort = 3333;
 	
+	// 소켓 초기화
+
+	if (WSAStartup(0x202, &wsaData) == SOCKET_ERROR)
+	{
+		printf("WinSock 초기화부분에서 문제 발생.n");
+		WSACleanup();
+		exit(0);
+	}
+
+	memset(&ToServer, 0, sizeof(ToServer));
+	memset(&FromServer, 0, sizeof(FromServer));
+
+	ToServer.sin_family = AF_INET;
+	ToServer.sin_addr.s_addr = inet_addr("192.168.0.15");
+	ToServer.sin_port = htons(ServerPort); // 포트번호
+
+	ClientSocket = socket(AF_INET, SOCK_DGRAM, 0);//
+
+	if (ClientSocket == INVALID_SOCKET)
+	{
+		printf("소켓을 생성할수 없습니다.");
+		closesocket(ClientSocket);
+		WSACleanup();
+		exit(0);
+	}
 	
 	// Register all formats and codecs
 	av_register_all();
@@ -277,6 +321,10 @@ int main(int argc, char *argv[]) {
 				SDL_Quit();
 				exit(0);
 				break;
+			case SDLK_s:
+				//------------------- 패킷송신 (26바이트의 알파벳대문자들~)
+				Send_Size = sendto(ClientSocket, Buffer, sizeof(Buffer), 0,(struct sockaddr*) &ToServer, sizeof(ToServer));
+				break;
 			default:
 				break;
 			}
@@ -301,6 +349,10 @@ int main(int argc, char *argv[]) {
 
 	// Close the video file
 	avformat_close_input(&pFormatCtx);
+
+	// 소켓 닫기
+	closesocket(ClientSocket); 
+	WSACleanup();
 
 	return 0;
 }
