@@ -10,6 +10,7 @@ extern "C" {
 
 #include <iostream>
 
+
 ///> Library Link On Windows System
 // 자꾸 뭔가 안되서 ffmpeg의 모든 라이브러리를 다 집어넣어둠
 #pragma comment( lib, "avformat.lib" )	
@@ -77,6 +78,11 @@ int main(int argc, char *argv[]) {
 	SDL_Rect        rect;
 	SDL_Event       event;
 
+	//줌인 줌 아웃을 위한 변수
+	int rect_w = 0;
+	int rect_h = 0;
+	
+	
 	// Register all formats and codecs
 	av_register_all();
 	//network init 이걸 적지 않으면 워링이 나서 일단 적었다. (왜 적는지 잘 모르겠슴)
@@ -91,7 +97,7 @@ int main(int argc, char *argv[]) {
 
 	// Open video file
 	// 파일 또는 데이터 스트림을 연다.
-	if (avformat_open_input(&pFormatCtx, "tcp://192.168.0.15:2222", NULL, NULL) != 0)
+	if (avformat_open_input(&pFormatCtx, "tcp://14.35.11.234:2222", NULL, NULL) != 0)
 	{
 		return -1; // Couldn't open file
 	}
@@ -104,7 +110,7 @@ int main(int argc, char *argv[]) {
 	}
 	// Dump information about file onto standard error
 	// 에러가 발생할 경우 덤프 파일을 생성하는 코드로 보임
-	av_dump_format(pFormatCtx, 0, "tcp://192.168.0.15:2222", 0);
+	av_dump_format(pFormatCtx, 0, "tcp://14.35.11.234:2222", 0);
 
 	// Find the first video stream
 	// 비디로 스트림을 찾는과정 - 어떤 형식의 데이터 스트림인지 판별 ( 우리는 h.264로 고정되어있지만...)
@@ -144,10 +150,6 @@ int main(int argc, char *argv[]) {
 
 
 	// Allocate an AVFrame structure
-	// RGB데이터를 생성하기위한 준비
-	// 아무래도 RGB 데이터를 저장하기 위해서는 좀더 큰 버퍼가 필요한듯 하다.
-	// 정확히 어떤 원리로 color를 추출해 내는지 의문이다..
-	// 이 예제를 보기전에는 흑백으로 나와서 애먹었음...
 
 	//... 기껏 RGB 변환 예제를 따라했는데 출력시에 쓰지 않는다.
 	/*pFrameRGB = av_frame_alloc();
@@ -155,21 +157,20 @@ int main(int argc, char *argv[]) {
 		return -1;*/
 
 	// Determine required buffer size and allocate buffer
-	numBytes = avpicture_get_size(AV_PIX_FMT_YUV420P, pCodecCtx->width,
-		pCodecCtx->height);
+	// 영상의 사이즈를 가져온다
+	numBytes = avpicture_get_size(AV_PIX_FMT_YUV420P, pCodecCtx->width,pCodecCtx->height);
 	buffer = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
 
 	// Assign appropriate parts of buffer to image planes in pFrameRGB
 	// Note that pFrameRGB is an AVFrame, but AVFrame is a superset
 	// of AVPicture
-	// (AVPixelFormat)2 라는 인자는 원래 저렇게 쓰는게아니라 enum으로 지정이 되어있는
-	// 건데 이상하게 찾아내질 못하길래 그냥 숫자로 떄려박았다.
-	// 어차피 enum은 숫자일 뿐이니까...
+
 	// RGB변환은 쓰지 않는다.
 	/*avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_YUV420P,
 		pCodecCtx->width, pCodecCtx->height);*/
 
 	// Make a screen to put our video
+	// 스크린을 생성
 #ifndef __DARWIN__
 	screen = SDL_SetVideoMode(pCodecCtx->width, pCodecCtx->height, 0, 0);
 #else
@@ -181,6 +182,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Allocate a place to put our YUV image on that screen
+	// 이미지를 스크린에 그림
 	bmp = SDL_CreateYUVOverlay(pCodecCtx->width,
 		pCodecCtx->height,
 		SDL_YV12_OVERLAY,
@@ -208,6 +210,7 @@ int main(int argc, char *argv[]) {
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
 
 			// Did we get a video frame?
+			// 비디오 프레임을 비트맵 이미지로 변환
 			if (frameFinished) {
 				SDL_LockYUVOverlay(bmp);
 
@@ -220,6 +223,7 @@ int main(int argc, char *argv[]) {
 				pict.linesize[1] = bmp->pitches[2];
 				pict.linesize[2] = bmp->pitches[1];
 
+				
 				// Convert the image into YUV format that SDL uses
 				sws_scale(sws_ctx, (uint8_t const * const *)pFrame->data,
 					pFrame->linesize, 0, pCodecCtx->height,
@@ -227,10 +231,11 @@ int main(int argc, char *argv[]) {
 
 				SDL_UnlockYUVOverlay(bmp);
 
-				rect.x = 0;
-				rect.y = 0;
-				rect.w = pCodecCtx->width;
-				rect.h = pCodecCtx->height;
+				// 소프트웨어상으로 줌인 줌아웃을 하기위해 영상프레임의 사이즈를 조절
+				rect.x = -rect_w/2;
+				rect.y = -rect_h/2;
+				rect.w = pCodecCtx->width + rect_w;
+				rect.h = pCodecCtx->height + rect_h;
 				SDL_DisplayYUVOverlay(bmp, &rect);
 
 			}
@@ -239,16 +244,49 @@ int main(int argc, char *argv[]) {
 		// Free the packet that was allocated by av_read_frame
 		av_free_packet(&packet);
 		SDL_PollEvent(&event);
+		// 키 이벤트를 받는 함수
 		switch (event.type) {
 		case SDL_QUIT:
 			SDL_Quit();
 			exit(0);
 			break;
+		case SDL_KEYDOWN:
+			/* Check the SDLKey values and move change the coords */
+			switch (event.key.keysym.sym){
+			/*case SDLK_LEFT:
+				
+				break;
+			case SDLK_RIGHT:
+				
+				break;*/
+			case SDLK_UP: // 줌 인
+				if (rect_w < 300)
+				{
+					rect_h += 20;
+					rect_w += 30;
+				}
+				break;
+			case SDLK_DOWN: // 줌 아웃
+				if (0 < rect_w)
+				{
+					rect_h -= 20;
+					rect_w -= 30;
+				}				
+				break;
+			case SDLK_x: // 플그램 종료
+				SDL_Quit();
+				exit(0);
+				break;
+			default:
+				break;
+			}
 		default:
 			break;
 		}
 
 	}
+
+
 
 	// Free the RGB image
 	av_free(buffer);
