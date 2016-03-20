@@ -99,6 +99,8 @@ int main(int argc, char *argv[]) {
 	int   Recv_Size;   int   Send_Size;
 
 	char   Buffer[BUFFER_SIZE] = { "Message~" };
+	char   left_m[BUFFER_SIZE] = { "왼쪽" };
+	char   right_m[BUFFER_SIZE] = { "오른쪽" };
 	USHORT   ServerPort = 3333;
 	
 	// 소켓 초기화
@@ -114,10 +116,12 @@ int main(int argc, char *argv[]) {
 	memset(&FromServer, 0, sizeof(FromServer));
 
 	ToServer.sin_family = AF_INET;
-	ToServer.sin_addr.s_addr = inet_addr("192.168.0.15");
+	// 외부아이피로 컨트롤 하고 싶었는데 뭐가 문제인지 외부아이피로 포트포워딩을 하면 데이터가 전달이 안된다.
+	// 아무래도 포트를 열어주는 방식에 문제가 있는것 같은데 해결을 아직 못했음.
+	ToServer.sin_addr.s_addr = inet_addr("192.168.0.15"); 
 	ToServer.sin_port = htons(ServerPort); // 포트번호
 
-	ClientSocket = socket(AF_INET, SOCK_DGRAM, 0);//
+	ClientSocket = socket(AF_INET, SOCK_DGRAM, 0);// udp 
 
 	if (ClientSocket == INVALID_SOCKET)
 	{
@@ -297,12 +301,14 @@ int main(int argc, char *argv[]) {
 		case SDL_KEYDOWN:
 			/* Check the SDLKey values and move change the coords */
 			switch (event.key.keysym.sym){
-			/*case SDLK_LEFT:
-				
+			case SDLK_LEFT:
+				// 문자열 송신
+				Send_Size = sendto(ClientSocket, left_m, sizeof(left_m), 0,(struct sockaddr*) &ToServer, sizeof(ToServer));
 				break;
 			case SDLK_RIGHT:
-				
-				break;*/
+				// 문자열 송신
+				Send_Size = sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+				break;
 			case SDLK_UP: // 줌 인
 				if (rect_w < 300)
 				{
@@ -322,9 +328,7 @@ int main(int argc, char *argv[]) {
 				exit(0);
 				break;
 			case SDLK_s:
-				//------------------- 패킷송신 (26바이트의 알파벳대문자들~)
-				Send_Size = sendto(ClientSocket, Buffer, sizeof(Buffer), 0,(struct sockaddr*) &ToServer, sizeof(ToServer));
-				break;
+				
 			default:
 				break;
 			}
