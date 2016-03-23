@@ -1,5 +1,4 @@
 ///> Include FFMpeg and SDL
-// C 기반의 헤더파일을 포함시킬때는 이렇게 써야하는것 같다.
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
@@ -38,7 +37,6 @@ extern "C" {
 
 //윈 소켓
 #pragma comment (lib,"ws2_32.lib")
-#define BUFFER_SIZE 1024
 
 // compatibility with newer API
 // 버전이 바뀌면서 달라진 점을 이렇게 커버하는 듯 하다.
@@ -51,12 +49,13 @@ extern "C" {
 class DataCollector : public myo::DeviceListener 
 {
 public:
-	DataCollector()
+	DataCollector() // 생성자
 		: onArm(false), isUnlocked(false), roll_w(0), pitch_w(0), yaw_w(0), currentPose()
 	{
 	}
 
 	// onUnpair() is called whenever the Myo is disconnected from Myo Connect by the user.
+	// 마이오 탐지가 안될때
 	void onUnpair(myo::Myo* myo, uint64_t timestamp)
 	{
 		// We've lost a Myo.
@@ -70,6 +69,7 @@ public:
 
 	// onOrientationData() is called whenever the Myo device provides its current orientation, which is represented
 	// as a unit quaternion.
+	// 마이오에서 받아온 Quaternion 데이터를 가공하여 각 축에대한 회전값으로 변환
 	void onOrientationData(myo::Myo* myo, uint64_t timestamp, const myo::Quaternion<float>& quat)
 	{
 		using std::atan2;
@@ -79,6 +79,7 @@ public:
 		using std::min;
 
 		// Calculate Euler angles (roll, pitch, and yaw) from the unit quaternion.
+		
 		float roll = atan2(2.0f * (quat.w() * quat.x() + quat.y() * quat.z()),
 			1.0f - 2.0f * (quat.x() * quat.x() + quat.y() * quat.y()));
 		float pitch = asin(max(-1.0f, min(1.0f, 2.0f * (quat.w() * quat.y() - quat.z() * quat.x()))));
@@ -93,6 +94,7 @@ public:
 
 	// onPose() is called whenever the Myo detects that the person wearing it has changed their pose, for example,
 	// making a fist, or not making a fist anymore.
+	// 마이오에서 사용자의 손동작을 읽어오는 함수
 	void onPose(myo::Myo* myo, uint64_t timestamp, myo::Pose pose)
 	{
 		currentPose = pose;
@@ -117,6 +119,7 @@ public:
 
 	// onArmSync() is called whenever Myo has recognized a Sync Gesture after someone has put it on their
 	// arm. This lets Myo know which arm it's on and which way it's facing.
+	// 마이오가 팔에 정상적으로 착용이 되었는지 탐지
 	void onArmSync(myo::Myo* myo, uint64_t timestamp, myo::Arm arm, myo::XDirection xDirection, float rotation,
 		myo::WarmupState warmupState)
 	{
@@ -127,6 +130,7 @@ public:
 	// onArmUnsync() is called whenever Myo has detected that it was moved from a stable position on a person's arm after
 	// it recognized the arm. Typically this happens when someone takes Myo off of their arm, but it can also happen
 	// when Myo is moved around on the arm.
+	// 마이오를 팔에서 제거하였음을 탐지
 	void onArmUnsync(myo::Myo* myo, uint64_t timestamp)
 	{
 		onArm = false;
@@ -148,15 +152,16 @@ public:
 	// For this example, the functions overridden above are sufficient.
 
 	// We define this function to print the current values that were updated by the on...() functions above.
+	// 마이오의 상태를 콘솔을 통해 확인하기 위해 작성한 함수
 	void print()
 	{
 		// Clear the current line
 		std::cout << '\r';
 
 		// Print out the orientation. Orientation data is always available, even if no arm is currently recognized.
-		std::cout << '[' << roll_w << ']'
-			<< '[' << pitch_w << ']'
-			<< '[' << yaw_w << ']';
+		std::cout << '[' << roll_w << ']' // z 축
+			<< '[' << pitch_w << ']' // y 축
+			<< '[' << yaw_w << ']'; // x 축
 
 		if (onArm) 
 		{
@@ -167,12 +172,16 @@ public:
 			// that we can fill the rest of the field with spaces below, so we obtain it as a string using toString().
 			std::string poseString = currentPose.toString();
 
+			// 팔에 작용되었을 경우 잠김 상태인지 아닌지 콘솔에 표시
+			// 어느 팔에 작용 되었는지 표시
+			// 현재 취하고있는 손동작을 표시
 			std::cout << '[' << (isUnlocked ? "unlocked" : "locked  ") << ']'
 				<< '[' << (whichArm == myo::armLeft ? "L" : "R") << ']'
 				<< '[' << poseString << std::string(14 - poseString.size(), ' ') << ']';
 		}
 		else 
 		{
+			// 마이오가 팔에서 제거 되었을 경우
 			// Print out a placeholder for the arm and pose when Myo doesn't currently know which arm it's on.
 			std::cout << '[' << std::string(8, ' ') << ']' << "[?]" << '[' << std::string(14, ' ') << ']';
 		}
@@ -195,6 +204,8 @@ public:
 
 
 // 영상 프레임을 이미지로 저장하는 함수
+// 테스트용 소스
+/*
 void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame) 
 {
 	FILE *pFile;
@@ -222,9 +233,10 @@ void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame)
 	// Close file
 	fclose(pFile);
 }
-
+*/
 
 // 줌인 함수
+// 화면 사이즈의 비율이 2:3 일 경우에만 정상적으로 동작된다.
 void ZoomIn(int &width,int &height,int limit)
 {
 	if (width < limit)
@@ -235,6 +247,7 @@ void ZoomIn(int &width,int &height,int limit)
 }
 
 // 줌 아웃 함수
+// 화면 사이즈의 비율이 2:3 일 경우에만 정상적으로 동작된다.
 void ZoomOut(int &width, int &height, int limit)
 {
 	if (limit < width)
@@ -244,7 +257,11 @@ void ZoomOut(int &width, int &height, int limit)
 	}
 }
 
-
+// 데이터 센드
+void DataSend(SOCKET ClientSocket,char* Message,SOCKADDR_IN &ToServer)
+{
+	sendto(ClientSocket, Message, 1 , 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+}
 
 int main(int argc, char *argv[]) 
 {
@@ -279,13 +296,7 @@ int main(int argc, char *argv[])
 	SOCKET   ClientSocket;
 	SOCKADDR_IN  ToServer;   
 	SOCKADDR_IN  FromServer;
-
-	int   FromServer_Size;
-	int   Recv_Size;   int   Send_Size;
-
-	char   Buffer[BUFFER_SIZE] = { "Message~" };
-	char   left_m[BUFFER_SIZE] = { "왼쪽" };
-	char   right_m[BUFFER_SIZE] = { "오른쪽" };
+	
 	USHORT   ServerPort = 3333;
 	
 	// We catch any exceptions that might occur below -- see the catch statement for more details.
@@ -294,6 +305,7 @@ int main(int argc, char *argv[])
 	// 여기부터 마이오 초기화
 	// First, we create a Hub with our application identifier. Be sure not to use the com.example namespace when
 	// publishing your application. The Hub provides access to one or more Myos.
+	// 마이오에서 제공하는 어플리케이션과 연결하는 허브 생성
 	myo::Hub hub("com.example.hello-myo");
 
 	// 마이오 찾는중 ...
@@ -303,9 +315,11 @@ int main(int argc, char *argv[])
 	// immediately.
 	// waitForMyo() takes a timeout value in milliseconds. In this case we will try to find a Myo for 10 seconds, and
 	// if that fails, the function will return a null pointer.
+	// 마이오를 찾는 동안 대기하는 소스코드
 	myo::Myo* myo = hub.waitForMyo(10000);
 
 	// If waitForMyo() returned a null pointer, we failed to find a Myo, so exit with an error message.
+	// 마이오가 존재하지 않을경우 예외처리
 	if (!myo) 
 	{
 		throw std::runtime_error("Unable to find a Myo!");
@@ -315,10 +329,12 @@ int main(int argc, char *argv[])
 	std::cout << "Connected to a Myo armband!" << std::endl << std::endl;
 
 	// Next we construct an instance of our DeviceListener, so that we can register it with the Hub.
+	// 마이오에서 얻은 데이터를 가공해주는 클래스
 	DataCollector collector;
 
 	// Hub::addListener() takes the address of any object whose class inherits from DeviceListener, and will cause
 	// Hub::run() to send events to all registered device listeners.
+	// 데이터를 지속적으로 받아온다.
 	hub.addListener(&collector);
 
 	//---여기까지 마이오 초기화
@@ -336,7 +352,7 @@ int main(int argc, char *argv[])
 	memset(&FromServer, 0, sizeof(FromServer));
 
 	ToServer.sin_family = AF_INET;
-	// 외부아이피로 컨트롤 하고 싶었는데 뭐가 문제인지 외부아이피로 포트포워딩을 하면 데이터가 전달이 안된다.
+	// 외부아이피로도 컨트롤 하고 싶었는데 뭐가 문제인지 외부아이피로 포트포워딩을 하면 데이터가 전달이 안된다.
 	// 아무래도 포트를 열어주는 방식에 문제가 있는것 같은데 해결을 아직 못했음.
 	ToServer.sin_addr.s_addr = inet_addr("192.168.0.15"); 
 	ToServer.sin_port = htons(ServerPort); // 포트번호
@@ -357,7 +373,6 @@ int main(int argc, char *argv[])
 	avformat_network_init();
 
 	//SDL 초기화 
-	//아직 SDL에대한 지식이 부족
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER)) 
 	{
 		fprintf(stderr, "Could not initialize SDL - %s\n", SDL_GetError());
@@ -423,10 +438,7 @@ int main(int argc, char *argv[])
 	
 	// Allocate video frame
 	pFrame = av_frame_alloc();
-
-
-
-
+	
 	// Allocate an AVFrame structure
 
 	//... 기껏 RGB 변환 예제를 따라했는데 출력시에 쓰지 않는다.
@@ -487,10 +499,12 @@ int main(int argc, char *argv[])
 		// 마이오 루프
 
 		// In each iteration of our main loop, we run the Myo event loop for a set number of milliseconds.
-		// In this case, we wish to update our display 20 times a second, so we run for 1000/20 milliseconds.
+		// 데이터를 어느정도 주기로 받아올지 정하는 소스
+		// 이 값이 낮아지면 영상을 받아오는데도 딜레이가 걸리기때문에 원하는 fps를 고려해야한다.
 		hub.run(1000 / 500);
 		// After processing events, we call the print() member function we defined above to print out the values we've
 		// obtained from any events that have occurred.
+		// 마이오 상태 모니터링 코드
 		collector.print();
 		
 		// 마이오 루프 여기까지
@@ -540,13 +554,25 @@ int main(int argc, char *argv[])
 		SDL_PollEvent(&event);
 
 		// 마이오의 동작을 체크해서 메시지 송신
+		// 좌우 카메라 컨트롤
 		if (collector.currentPose == myo::Pose::waveOut)
 		{
-			Send_Size = sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+			DataSend(ClientSocket, "right", ToServer);
+				//sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 		}	
 		if (collector.currentPose == myo::Pose::waveIn)
 		{
-			Send_Size = sendto(ClientSocket, left_m, sizeof(left_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+			DataSend(ClientSocket, "left", ToServer);
+				//sendto(ClientSocket, left_m, sizeof(left_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+		}
+		// 상하 카메라 컨트롤
+		if (collector.currentPose == myo::Pose::fingersSpread && collector.pitch_w > 10)
+		{
+			DataSend(ClientSocket, "up", ToServer);
+		}
+		if (collector.currentPose == myo::Pose::fingersSpread && collector.pitch_w < 6)
+		{
+			DataSend(ClientSocket, "down", ToServer);
 		}
 		// 마이오의 동작을 체크해서 줌인 줌 아웃
 		if (collector.currentPose == myo::Pose::fist && collector.roll_w < 6)
@@ -569,23 +595,27 @@ int main(int argc, char *argv[])
 			switch (event.key.keysym.sym){
 			case SDLK_LEFT:
 				// 문자열 송신
-				Send_Size = sendto(ClientSocket, left_m, sizeof(left_m), 0,(struct sockaddr*) &ToServer, sizeof(ToServer));
+				DataSend(ClientSocket, "left", ToServer);
 				break;
 			case SDLK_RIGHT:
 				// 문자열 송신
-				Send_Size = sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+				DataSend(ClientSocket, "right", ToServer);
 				break;
-			case SDLK_UP: // 줌 인
+			case SDLK_UP:
+				DataSend(ClientSocket, "upup", ToServer);
+				break;
+			case SDLK_DOWN:
+				DataSend(ClientSocket, "down", ToServer);
+				break;
+			case SDLK_q: // 줌 인
 				ZoomIn(rect_w,rect_h,300);			
 				break;
-			case SDLK_DOWN: // 줌 아웃
+			case SDLK_w: // 줌 아웃
 				ZoomOut(rect_w, rect_h, 0);								
 				break;
 			case SDLK_x: // 플그램 종료
 				SDL_Quit();
 				exit(0);
-				break;
-			case SDLK_s:
 				break;
 			default:
 				break;
@@ -595,9 +625,7 @@ int main(int argc, char *argv[])
 		}
 
 	}
-
-
-
+	
 	// Free the RGB image
 	av_free(buffer);
 	av_frame_free(&pFrameRGB);
@@ -619,6 +647,8 @@ int main(int argc, char *argv[])
 	return 0;
 
 	}
+	// 개인적으로 exception handling을 이렇게하는걸 좋아하지 않지만...
+	// 예제에서 이렇게 사용하였기에 일단 이렇게 두었다.
 	catch (const std::exception& e) 
 	{
 		std::cerr << "Error: " << e.what() << std::endl;
