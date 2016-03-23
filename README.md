@@ -1,7 +1,12 @@
 ﻿# EndProjenct
 
-SDL 및 ffmpeg 디렉토리는 D: 에 두고 경로를 설정해서 사용하였다.
+SDL version 1.2
 
-개발환경은 윈도우 8.1 비주얼 스튜디오2013.
+ffmpeg 3.0
 
-깃 테스트
+Windows 8.1 
+
+Visual Studio 2013
+
+Myo Windows SDK 0.9.0
+
