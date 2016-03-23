@@ -22,8 +22,6 @@ extern "C" {
 // The only file that needs to be included to use the Myo C++ SDK is myo.hpp.
 #include <myo/myo.hpp>
 
-
-
 ///> Library Link On Windows System
 // 자꾸 뭔가 안되서 ffmpeg의 모든 라이브러리를 다 집어넣어둠
 #pragma comment( lib, "avformat.lib" )	
@@ -50,7 +48,8 @@ extern "C" {
 #endif
 
 // Myo 데이터를 받아서 가공해주는 클래스
-class DataCollector : public myo::DeviceListener {
+class DataCollector : public myo::DeviceListener 
+{
 public:
 	DataCollector()
 		: onArm(false), isUnlocked(false), roll_w(0), pitch_w(0), yaw_w(0), currentPose()
@@ -98,7 +97,8 @@ public:
 	{
 		currentPose = pose;
 
-		if (pose != myo::Pose::unknown && pose != myo::Pose::rest) {
+		if (pose != myo::Pose::unknown && pose != myo::Pose::rest) 
+		{
 			// Tell the Myo to stay unlocked until told otherwise. We do that here so you can hold the poses without the
 			// Myo becoming locked.
 			myo->unlock(myo::Myo::unlockHold);
@@ -107,7 +107,8 @@ public:
 			// the text on the screen. The Myo will vibrate.
 			myo->notifyUserAction();
 		}
-		else {
+		else 
+		{
 			// Tell the Myo to stay unlocked only for a short period. This allows the Myo to stay unlocked while poses
 			// are being performed, but lock after inactivity.
 			myo->unlock(myo::Myo::unlockTimed);
@@ -157,7 +158,8 @@ public:
 			<< '[' << pitch_w << ']'
 			<< '[' << yaw_w << ']';
 
-		if (onArm) {
+		if (onArm) 
+		{
 			// Print out the lock state, the currently recognized pose, and which arm Myo is being worn on.
 
 			// Pose::toString() provides the human-readable name of a pose. We can also output a Pose directly to an
@@ -169,7 +171,8 @@ public:
 				<< '[' << (whichArm == myo::armLeft ? "L" : "R") << ']'
 				<< '[' << poseString << std::string(14 - poseString.size(), ' ') << ']';
 		}
-		else {
+		else 
+		{
 			// Print out a placeholder for the arm and pose when Myo doesn't currently know which arm it's on.
 			std::cout << '[' << std::string(8, ' ') << ']' << "[?]" << '[' << std::string(14, ' ') << ']';
 		}
@@ -177,9 +180,6 @@ public:
 		std::cout << std::flush;
 	}
 
-	void sendright(){
-
-	}
 
 	// These values are set by onArmSync() and onArmUnsync() above.
 	bool onArm;
@@ -195,7 +195,8 @@ public:
 
 
 // 영상 프레임을 이미지로 저장하는 함수
-void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame) {
+void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame) 
+{
 	FILE *pFile;
 	char szFilename[32];
 	int  y;
@@ -204,21 +205,49 @@ void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame) {
 	sprintf_s(szFilename, "frame%d.ppm", iFrame);
 	fopen_s(&pFile, szFilename, "wb");
 	if (pFile == NULL)
+	{
 		return;
-
+	}
+		
 	// Write header
 	// 화면 사이즈와 칼라의 정도(?) 를 조절 0~255 까지 가능
 	fprintf(pFile, "P6\n%d %d\n255\n", width, height);
 
 	// Write pixel data
 	for (y = 0; y<height; y++)
+	{
 		fwrite(pFrame->data[0] + y*pFrame->linesize[0], 1, width * 3, pFile);
-
+	}
+	
 	// Close file
 	fclose(pFile);
 }
 
-int main(int argc, char *argv[]) {
+
+// 줌인 함수
+void ZoomIn(int &width,int &height,int limit)
+{
+	if (width < limit)
+	{
+		height += 20;
+		width += 30;
+	}	
+}
+
+// 줌 아웃 함수
+void ZoomOut(int &width, int &height, int limit)
+{
+	if (limit < width)
+	{
+		height -= 20;
+		width -= 30;
+	}
+}
+
+
+
+int main(int argc, char *argv[]) 
+{
 	// Initalizing these to NULL prevents segfaults!
 	AVFormatContext   *pFormatCtx = NULL;
 	int               i, videoStream;
@@ -260,7 +289,8 @@ int main(int argc, char *argv[]) {
 	USHORT   ServerPort = 3333;
 	
 	// We catch any exceptions that might occur below -- see the catch statement for more details.
-	try {
+	try 
+	{
 	// 여기부터 마이오 초기화
 	// First, we create a Hub with our application identifier. Be sure not to use the com.example namespace when
 	// publishing your application. The Hub provides access to one or more Myos.
@@ -276,7 +306,8 @@ int main(int argc, char *argv[]) {
 	myo::Myo* myo = hub.waitForMyo(10000);
 
 	// If waitForMyo() returned a null pointer, we failed to find a Myo, so exit with an error message.
-	if (!myo) {
+	if (!myo) 
+	{
 		throw std::runtime_error("Unable to find a Myo!");
 	}
 
@@ -327,7 +358,8 @@ int main(int argc, char *argv[]) {
 
 	//SDL 초기화 
 	//아직 SDL에대한 지식이 부족
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER)) {
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER)) 
+	{
 		fprintf(stderr, "Could not initialize SDL - %s\n", SDL_GetError());
 		exit(1);
 	}
@@ -352,34 +384,43 @@ int main(int argc, char *argv[]) {
 	// Find the first video stream
 	// 비디로 스트림을 찾는과정 - 어떤 형식의 데이터 스트림인지 판별 ( 우리는 h.264로 고정되어있지만...)
 	videoStream = -1;
-	for (i = 0; (unsigned)i<pFormatCtx->nb_streams; i++)
-		if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+	for (i = 0; (unsigned)i < pFormatCtx->nb_streams; i++)
+	{
+		if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) 
+		{
 			videoStream = i;
 			break;
 		}
+	}
+	
 	if (videoStream == -1)
+	{
 		return -1; // Didn't find a video stream
-
+	}
 	// Get a pointer to the codec context for the video stream
 	pCodecCtxOrig = pFormatCtx->streams[videoStream]->codec;
 	// Find the decoder for the video stream
 	pCodec = avcodec_find_decoder(pCodecCtxOrig->codec_id);
-	if (pCodec == NULL) {
+	if (pCodec == NULL) 
+	{
 		fprintf(stderr, "Unsupported codec!\n");
 		return -1; // Codec not found
 	}
 	// Copy context
 	// 왜 인지 모르겠지만 그냥 쓰지 않고 복사해서 사용한다.
 	pCodecCtx = avcodec_alloc_context3(pCodec);
-	if (avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) {
+	if (avcodec_copy_context(pCodecCtx, pCodecCtxOrig) != 0) 
+	{
 		fprintf(stderr, "Couldn't copy codec context");
 		return -1; // Error copying codec context
 	}
 
 	// Open codec
 	if (avcodec_open2(pCodecCtx, pCodec, NULL)<0)
+	{
 		return -1; // Could not open codec
-
+	}
+	
 	// Allocate video frame
 	pFrame = av_frame_alloc();
 
@@ -413,7 +454,8 @@ int main(int argc, char *argv[]) {
 #else
 	screen = SDL_SetVideoMode(pCodecCtx->width, pCodecCtx->height, 24, 0);
 #endif
-	if (!screen) {
+	if (!screen) 
+	{
 		fprintf(stderr, "SDL: could not set video mode - exiting\n");
 		exit(1);
 	}
@@ -440,7 +482,8 @@ int main(int argc, char *argv[]) {
 
 	// Read frames and save first five frames to disk
 	i = 0;
-	while (av_read_frame(pFormatCtx, &packet) >= 0) {
+	while (av_read_frame(pFormatCtx, &packet) >= 0) 
+	{
 		// 마이오 루프
 
 		// In each iteration of our main loop, we run the Myo event loop for a set number of milliseconds.
@@ -454,13 +497,15 @@ int main(int argc, char *argv[]) {
 
 
 		// Is this a packet from the video stream?
-		if (packet.stream_index == videoStream) {
+		if (packet.stream_index == videoStream) 
+		{
 			// Decode video frame
 			avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
 
 			// Did we get a video frame?
 			// 비디오 프레임을 비트맵 이미지로 변환
-			if (frameFinished) {
+			if (frameFinished) 
+			{
 				SDL_LockYUVOverlay(bmp);
 
 				AVPicture pict;
@@ -495,15 +540,26 @@ int main(int argc, char *argv[]) {
 		SDL_PollEvent(&event);
 
 		// 마이오의 동작을 체크해서 메시지 송신
-		if (collector.currentPose == myo::Pose::waveOut){
+		if (collector.currentPose == myo::Pose::waveOut)
+		{
 			Send_Size = sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 		}	
-		if (collector.currentPose == myo::Pose::waveIn){
+		if (collector.currentPose == myo::Pose::waveIn)
+		{
 			Send_Size = sendto(ClientSocket, left_m, sizeof(left_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 		}
-
+		// 마이오의 동작을 체크해서 줌인 줌 아웃
+		if (collector.currentPose == myo::Pose::fist && collector.roll_w < 6)
+		{
+			ZoomIn(rect_w, rect_h, 300);
+		}
+		if (collector.currentPose == myo::Pose::fist && collector.roll_w > 8)
+		{
+			ZoomOut(rect_w, rect_h, 0);
+		}
 		// 키 이벤트를 받는 함수
-		switch (event.type) {
+		switch (event.type) 
+		{
 		case SDL_QUIT:
 			SDL_Quit();
 			exit(0);
@@ -520,25 +576,17 @@ int main(int argc, char *argv[]) {
 				Send_Size = sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 				break;
 			case SDLK_UP: // 줌 인
-				if (rect_w < 300)
-				{
-					rect_h += 20;
-					rect_w += 30;
-				}
+				ZoomIn(rect_w,rect_h,300);			
 				break;
 			case SDLK_DOWN: // 줌 아웃
-				if (0 < rect_w)
-				{
-					rect_h -= 20;
-					rect_w -= 30;
-				}				
+				ZoomOut(rect_w, rect_h, 0);								
 				break;
 			case SDLK_x: // 플그램 종료
 				SDL_Quit();
 				exit(0);
 				break;
 			case SDLK_s:
-				
+				break;
 			default:
 				break;
 			}
@@ -571,7 +619,8 @@ int main(int argc, char *argv[]) {
 	return 0;
 
 	}
-	catch (const std::exception& e) {
+	catch (const std::exception& e) 
+	{
 		std::cerr << "Error: " << e.what() << std::endl;
 		std::cerr << "Press enter to continue.";
 		std::cin.ignore();
