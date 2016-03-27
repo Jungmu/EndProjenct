@@ -10,3 +10,4 @@ Visual Studio 2013
 
 Myo Windows SDK 0.9.0
 
+Raspberry Pi B+ and Raspberry PI test complite
