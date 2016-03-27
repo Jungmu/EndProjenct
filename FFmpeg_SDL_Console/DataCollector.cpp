@@ -17,6 +17,7 @@
 		onArm = false;
 		isUnlocked = false;
 	}
+	DataCollector::~DataCollector(){}
 
 	// onOrientationData() is called whenever the Myo device provides its current orientation, which is represented
 	// as a unit quaternion.

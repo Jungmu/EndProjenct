@@ -1,6 +1,6 @@
-// The only file that needs to be included to use the Myo C++ SDK is "DataCollector.h"
 #include "DataCollector.h"
-#include "Header.h"
+#include "VideoSocket.h"
+
 // compatibility with newer API
 // 버전이 바뀌면서 달라진 점을 이렇게 커버하는 듯 하다.
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(55,28,1)
@@ -30,14 +30,31 @@ void ZoomOut(int &width, int &height, int limit)
 	}
 }
 
-// 데이터 센드
-void DataSend(SOCKET ClientSocket,char* Message,SOCKADDR_IN &ToServer)
+// 데이터 샌드
+// 어차피 카메라 제어를위해 데이터를 보내는 것이기 때문에 맨 앞의 1개 문자열만 보낸다.
+void SendData(SOCKET ClientSocket, char* Message, SOCKADDR_IN &ToServer)
 {
 	sendto(ClientSocket, Message, 1 , 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 }
 
+void InitSDL(){
+	// Register all formats and codecs
+	av_register_all();
+	//network init 이걸 적지 않으면 워링이 나서 일단 적었다. (왜 적는지 잘 모르겠슴)
+	avformat_network_init();
+
+	//SDL 초기화 
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER))
+	{
+		fprintf(stderr, "Could not initialize SDL - %s\n", SDL_GetError());
+		exit(1);
+	}
+}
+
+
 int main(int argc, char *argv[]) 
 {
+	
 	// Initalizing these to NULL prevents segfaults!
 	AVFormatContext   *pFormatCtx = NULL;
 	int               i, videoStream;
@@ -45,12 +62,9 @@ int main(int argc, char *argv[])
 	AVCodecContext    *pCodecCtx = NULL; // 코덱 컨트롤러(?) 이걸 자주 쓴다.
 	AVCodec           *pCodec = NULL; // 영상을 디코딩할 코덱
 	AVFrame           *pFrame = NULL; // 영상데이터 라고 보면됨.
-	AVFrame           *pFrameRGB = NULL; // RGB를 따로 하지않으면 흑백으로 나온다.
 	AVPacket          packet;
 	int               frameFinished;
-	int               numBytes;
-	uint8_t           *buffer = NULL;
-	struct SwsContext *sws_ctx = NULL; // RGB값을 얻을때 사용하던데 자세히 모르겠음
+	struct SwsContext *sws_ctx = NULL; // Convert the image into YUV format that SDL uses
 
 	//SDL 관련 변수
 	SDL_Overlay     *bmp;
@@ -58,19 +72,13 @@ int main(int argc, char *argv[])
 	SDL_Rect        rect;
 	SDL_Event       event;
 
+	CVideoSocket videoSocket;
+	
 	//줌인 줌 아웃을 위한 변수
 	int rect_w = 0;
 	int rect_h = 0;
 
-	// 소켓
 
-	WSADATA   wsaData;
-
-	SOCKET   ClientSocket;
-	SOCKADDR_IN  ToServer;   
-	SOCKADDR_IN  FromServer;
-	
-	USHORT   ServerPort = 3333;
 	
 	// We catch any exceptions that might occur below -- see the catch statement for more details.
 	try 
@@ -111,54 +119,16 @@ int main(int argc, char *argv[])
 	hub.addListener(&collector);
 
 	//---여기까지 마이오 초기화
-
-	// 소켓 초기화
-
-	if (WSAStartup(0x202, &wsaData) == SOCKET_ERROR)
-	{
-		printf("WinSock 초기화부분에서 문제 발생.n");
-		WSACleanup();
-		exit(0);
-	}
-
-	memset(&ToServer, 0, sizeof(ToServer));
-	memset(&FromServer, 0, sizeof(FromServer));
-
-	ToServer.sin_family = AF_INET;
-	// 외부아이피로도 컨트롤 하고 싶었는데 뭐가 문제인지 외부아이피로 포트포워딩을 하면 데이터가 전달이 안된다.
-	// 아무래도 포트를 열어주는 방식에 문제가 있는것 같은데 해결을 아직 못했음.
-	ToServer.sin_addr.s_addr = inet_addr("192.168.0.16"); 
-	ToServer.sin_port = htons(ServerPort); // 포트번호
-
-	ClientSocket = socket(AF_INET, SOCK_DGRAM, 0);// udp 
-
-	if (ClientSocket == INVALID_SOCKET)
-	{
-		printf("소켓을 생성할수 없습니다.");
-		closesocket(ClientSocket);
-		WSACleanup();
-		exit(0);
-	}
 	
-	// Register all formats and codecs
-	av_register_all();
-	//network init 이걸 적지 않으면 워링이 나서 일단 적었다. (왜 적는지 잘 모르겠슴)
-	avformat_network_init();
-
-	//SDL 초기화 
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER)) 
-	{
-		fprintf(stderr, "Could not initialize SDL - %s\n", SDL_GetError());
-		exit(1);
-	}
+	// SDL 초기화
+	InitSDL();
 
 	// Open video file
 	// 파일 또는 데이터 스트림을 연다.
-	if (avformat_open_input(&pFormatCtx, "tcp://192.168.0.16:2222", NULL, NULL) != 0)
+	if (avformat_open_input(&pFormatCtx, videoSocket.videoStreamUrl, NULL, NULL) != 0)
 	{
 		return -1; // Couldn't open file
 	}
-	
 	// Retrieve stream information
 	// 데이터 스트림의 정보를 얻어온다.
 	if (avformat_find_stream_info(pFormatCtx, NULL) < 0)
@@ -166,8 +136,7 @@ int main(int argc, char *argv[])
 		return -1; // Couldn't find stream information
 	}
 	// Dump information about file onto standard error
-	// 에러가 발생할 경우 덤프 파일을 생성하는 코드로 보임
-	av_dump_format(pFormatCtx, 0, "tcp://192.168.0.16:2222", 0);
+	av_dump_format(pFormatCtx, 0, videoSocket.videoStreamUrl, 0);
 
 	// Find the first video stream
 	// 비디로 스트림을 찾는과정 - 어떤 형식의 데이터 스트림인지 판별 ( 우리는 h.264로 고정되어있지만...)
@@ -179,8 +148,7 @@ int main(int argc, char *argv[])
 			videoStream = i;
 			break;
 		}
-	}
-	
+	}	
 	if (videoStream == -1)
 	{
 		return -1; // Didn't find a video stream
@@ -211,26 +179,6 @@ int main(int argc, char *argv[])
 	
 	// Allocate video frame
 	pFrame = av_frame_alloc();
-	
-	// Allocate an AVFrame structure
-
-	//... 기껏 RGB 변환 예제를 따라했는데 출력시에 쓰지 않는다.
-	/*pFrameRGB = av_frame_alloc();
-	if (pFrameRGB == NULL)
-		return -1;*/
-
-	// Determine required buffer size and allocate buffer
-	// 영상의 사이즈를 가져온다
-	numBytes = avpicture_get_size(AV_PIX_FMT_YUV420P, pCodecCtx->width,pCodecCtx->height);
-	buffer = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
-
-	// Assign appropriate parts of buffer to image planes in pFrameRGB
-	// Note that pFrameRGB is an AVFrame, but AVFrame is a superset
-	// of AVPicture
-
-	// RGB변환은 쓰지 않는다.
-	/*avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_YUV420P,
-		pCodecCtx->width, pCodecCtx->height);*/
 
 	// Make a screen to put our video
 	// 스크린을 생성
@@ -265,11 +213,9 @@ int main(int argc, char *argv[])
 		NULL
 		);
 
-	// Read frames and save first five frames to disk
-	i = 0;
 	while (av_read_frame(pFormatCtx, &packet) >= 0) 
 	{
-		// 마이오 루프
+		// 메인 루프
 
 		// In each iteration of our main loop, we run the Myo event loop for a set number of milliseconds.
 		// 데이터를 어느정도 주기로 받아올지 정하는 소스
@@ -279,7 +225,7 @@ int main(int argc, char *argv[])
 		// obtained from any events that have occurred.
 		// 마이오 상태 모니터링 코드
 		collector.print();
-		
+
 		// 마이오 루프 여기까지
 
 
@@ -330,22 +276,22 @@ int main(int argc, char *argv[])
 		// 좌우 카메라 컨트롤
 		if (collector.currentPose == myo::Pose::waveOut)
 		{
-			DataSend(ClientSocket, "right", ToServer);
+			SendData(videoSocket.ClientSocket, "right", videoSocket.ToServer);
 				//sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 		}	
 		if (collector.currentPose == myo::Pose::waveIn)
 		{
-			DataSend(ClientSocket, "left", ToServer);
+			SendData(videoSocket.ClientSocket, "left", videoSocket.ToServer);
 				//sendto(ClientSocket, left_m, sizeof(left_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 		}
 		// 상하 카메라 컨트롤
 		if (collector.currentPose == myo::Pose::fingersSpread && collector.pitch_w > 10)
 		{
-			DataSend(ClientSocket, "up", ToServer);
+			SendData(videoSocket.ClientSocket, "up", videoSocket.ToServer);
 		}
 		if (collector.currentPose == myo::Pose::fingersSpread && collector.pitch_w < 6)
 		{
-			DataSend(ClientSocket, "down", ToServer);
+			SendData(videoSocket.ClientSocket, "down", videoSocket.ToServer);
 		}
 		// 마이오의 동작을 체크해서 줌인 줌 아웃
 		if (collector.currentPose == myo::Pose::fist && collector.roll_w < 6)
@@ -368,17 +314,17 @@ int main(int argc, char *argv[])
 			switch (event.key.keysym.sym){
 			case SDLK_LEFT:
 				// 문자열 송신
-				DataSend(ClientSocket, "left", ToServer);
+				SendData(videoSocket.ClientSocket, "left", videoSocket.ToServer);
 				break;
 			case SDLK_RIGHT:
 				// 문자열 송신
-				DataSend(ClientSocket, "right", ToServer);
+				SendData(videoSocket.ClientSocket, "right", videoSocket.ToServer);
 				break;
 			case SDLK_UP:
-				DataSend(ClientSocket, "upup", ToServer);
+				SendData(videoSocket.ClientSocket, "up", videoSocket.ToServer);
 				break;
 			case SDLK_DOWN:
-				DataSend(ClientSocket, "down", ToServer);
+				SendData(videoSocket.ClientSocket, "down", videoSocket.ToServer);
 				break;
 			case SDLK_q: // 줌 인
 				ZoomIn(rect_w,rect_h,300);			
@@ -399,10 +345,6 @@ int main(int argc, char *argv[])
 
 	}
 	
-	// Free the RGB image
-	av_free(buffer);
-	av_frame_free(&pFrameRGB);
-
 	// Free the YUV frame
 	av_frame_free(&pFrame);
 
@@ -414,7 +356,7 @@ int main(int argc, char *argv[])
 	avformat_close_input(&pFormatCtx);
 
 	// 소켓 닫기
-	closesocket(ClientSocket); 
+	closesocket(videoSocket.ClientSocket);
 	WSACleanup();
 
 	return 0;

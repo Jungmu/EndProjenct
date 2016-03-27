@@ -1,10 +1,33 @@
 #pragma once
-#include "Header.h"
+//myo include
+#define _USE_MATH_DEFINES
+#include <cmath>
+#include <iostream>
+#include <iomanip>
+#include <stdexcept>
+#include <string>
+#include <algorithm>
+
+// The only file that needs to be included to use the Myo C++ SDK is myo.hpp.
+#include <myo/myo.hpp>
+
 // Myo 데이터를 받아서 가공해주는 클래스
 class DataCollector : public myo::DeviceListener
 {
 public:
+	// These values are set by onArmSync() and onArmUnsync() above.
+	bool onArm;
+	myo::Arm whichArm;
+
+	// This is set by onUnlocked() and onLocked() above.
+	bool isUnlocked;
+
+	// These values are set by onOrientationData() and onPose() above.
+	int roll_w, pitch_w, yaw_w;
+	myo::Pose currentPose;
+
 	DataCollector();
+	~DataCollector();
 
 	// onUnpair() is called whenever the Myo is disconnected from Myo Connect by the user.
 	// 마이오 탐지가 안될때
@@ -46,15 +69,6 @@ public:
 	// 마이오의 상태를 콘솔을 통해 확인하기 위해 작성한 함수
 	void print();
 	
-	// These values are set by onArmSync() and onArmUnsync() above.
-	bool onArm;
-	myo::Arm whichArm;
-
-	// This is set by onUnlocked() and onLocked() above.
-	bool isUnlocked;
-
-	// These values are set by onOrientationData() and onPose() above.
-	int roll_w, pitch_w, yaw_w;
-	myo::Pose currentPose;
+	
 };
 
