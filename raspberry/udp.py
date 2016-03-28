@@ -34,18 +34,18 @@ while True:
         var = data
 
         if var == "r":
-                if degree_x < 15:
+                if degree_x < 10:
                         degree_x = degree_x + 0.1
                         p.start(degree_x)
         elif var == "l":
-                if degree_x > 0:
+                if degree_x > 5:
                         degree_x = degree_x - 0.1
                         p.start(degree_x)
         elif var == "u":
-                if degree_y < 15:
+                if degree_y < 10:
                         degree_y = degree_y + 0.1
                         p1.start(degree_y)
         elif var == "d" :
-                if degree_y > 0 :
+                if degree_y > 5 :
                         degree_y = degree_y - 0.1
                         p1.start(degree_y)

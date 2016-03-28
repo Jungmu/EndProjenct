@@ -1,6 +1,6 @@
 #include "VideoSocket.h"
 
-CVideoSocket::CVideoSocket() :ServerPort(3333), piAddress("192.168.0.16"), videoStreamUrl("tcp://192.168.0.16:2222")
+CVideoSocket::CVideoSocket() :ServerPort(3333), piAddress("192.168.0.5"), videoStreamUrl("tcp://192.168.0.5:2222")
 {
 
 	// 소켓 초기화
