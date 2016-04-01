@@ -15,6 +15,7 @@
 class DataCollector : public myo::DeviceListener
 {
 public:
+	
 	// These values are set by onArmSync() and onArmUnsync() above.
 	bool onArm;
 	myo::Arm whichArm;

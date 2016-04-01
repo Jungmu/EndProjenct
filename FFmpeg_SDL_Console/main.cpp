@@ -8,6 +8,8 @@
 #define av_frame_free avcodec_free_frame
 #endif
 
+bool rest = true;
+
 // 줌인 함수
 // 화면 사이즈의 비율이 2:3 일 경우에만 정상적으로 동작된다.
 void ZoomIn(int &width,int &height,int limit)
@@ -35,6 +37,7 @@ void ZoomOut(int &width, int &height, int limit)
 void SendData(SOCKET ClientSocket, char* Message, SOCKADDR_IN &ToServer)
 {
 	sendto(ClientSocket, Message, 1 , 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+	
 }
 
 void InitSDL(){
@@ -107,7 +110,7 @@ int main(int argc, char *argv[])
 	}
 
 	// We've found a Myo.
-	std::cout << "Connected to a Myo armband!" << std::endl << std::endl;
+	//std::cout << "Connected to a Myo armband!" << std::endl << std::endl;
 
 	// Next we construct an instance of our DeviceListener, so that we can register it with the Hub.
 	// 마이오에서 얻은 데이터를 가공해주는 클래스
@@ -272,26 +275,44 @@ int main(int argc, char *argv[])
 		av_free_packet(&packet);
 		SDL_PollEvent(&event);
 
-		// 마이오의 동작을 체크해서 메시지 송신
-		// 좌우 카메라 컨트롤
+		//// 마이오의 동작을 체크해서 메시지 송신
+		//// 좌우 카메라 컨트롤
 		if (collector.currentPose == myo::Pose::waveOut)
 		{
-			SendData(videoSocket.ClientSocket, "right", videoSocket.ToServer);
+			SendData(videoSocket.ClientSocket, "right", videoSocket.ToServer);rest = true;
 				//sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 		}	
 		if (collector.currentPose == myo::Pose::waveIn)
 		{
-			SendData(videoSocket.ClientSocket, "left", videoSocket.ToServer);
+			SendData(videoSocket.ClientSocket, "left", videoSocket.ToServer);rest = true;
 				//sendto(ClientSocket, left_m, sizeof(left_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
 		}
 		// 상하 카메라 컨트롤
 		if (collector.currentPose == myo::Pose::fingersSpread && collector.pitch_w > 10)
 		{
-			SendData(videoSocket.ClientSocket, "up", videoSocket.ToServer);
+			SendData(videoSocket.ClientSocket, "up", videoSocket.ToServer);rest = true;
 		}
 		if (collector.currentPose == myo::Pose::fingersSpread && collector.pitch_w < 6)
 		{
 			SendData(videoSocket.ClientSocket, "down", videoSocket.ToServer);
+			rest = true;
+		}
+		if (collector.currentPose == myo::Pose::rest &&rest == true)
+		{
+			SendData(videoSocket.ClientSocket, "stop", videoSocket.ToServer);
+			rest = false;
+		}
+		if (collector.currentPose == myo::Pose::doubleTap && collector.roll_w <= 5)
+		{
+			collector.currentPose = myo::Pose::rest;
+			myo->lock();
+						
+		}
+		if (collector.currentPose == myo::Pose::doubleTap && collector.roll_w > 5)
+		{
+
+			myo->unlock(myo::Myo::unlockHold);
+
 		}
 		// 마이오의 동작을 체크해서 줌인 줌 아웃
 		if (collector.currentPose == myo::Pose::fist && collector.roll_w < 6)
@@ -331,6 +352,9 @@ int main(int argc, char *argv[])
 				break;
 			case SDLK_w: // 줌 아웃
 				ZoomOut(rect_w, rect_h, 0);								
+				break;
+			case SDLK_s: // test
+				SendData(videoSocket.ClientSocket, "stop", videoSocket.ToServer);
 				break;
 			case SDLK_x: // 플그램 종료
 				SDL_Quit();

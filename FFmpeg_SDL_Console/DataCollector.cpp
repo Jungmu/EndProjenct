@@ -11,6 +11,7 @@
 	{
 		// We've lost a Myo.
 		// Let's clean up some leftover state.
+	
 		roll_w = 0;
 		pitch_w = 0;
 		yaw_w = 0;
@@ -65,7 +66,7 @@
 		{
 			// Tell the Myo to stay unlocked only for a short period. This allows the Myo to stay unlocked while poses
 			// are being performed, but lock after inactivity.
-			myo->unlock(myo::Myo::unlockTimed);
+			myo->unlock(myo::Myo::unlockHold);
 		}
 	}
 
@@ -107,6 +108,7 @@
 	// 마이오의 상태를 콘솔을 통해 확인하기 위해 작성한 함수
 	void DataCollector::print()
 	{
+		
 		// Clear the current line
 		std::cout << '\r';
 

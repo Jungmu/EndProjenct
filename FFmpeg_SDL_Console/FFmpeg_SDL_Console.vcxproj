@@ -43,8 +43,8 @@
     <LinkIncremental>true</LinkIncremental>
     <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);..\ffmpeg\lib;..\SDL\lib\x86;..\lib</LibraryPath>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);..\ffmpeg\include;..\SDL\include;..\include</IncludePath>
-    <OutDir>D:\bin\$(Configuration)\$(ProjectName)\</OutDir>
-    <IntDir>D:\bin\int\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>C:\bin\$(Configuration)\$(ProjectName)\</OutDir>
+    <IntDir>C:\bin\int\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
