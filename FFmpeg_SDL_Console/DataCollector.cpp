@@ -10,8 +10,7 @@
 	void DataCollector::onUnpair(myo::Myo* myo, uint64_t timestamp)
 	{
 		// We've lost a Myo.
-		// Let's clean up some leftover state.
-	
+		// Let's clean up some leftover state.	
 		roll_w = 0;
 		pitch_w = 0;
 		yaw_w = 0;

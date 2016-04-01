@@ -80,8 +80,6 @@ int main(int argc, char *argv[])
 	//줌인 줌 아웃을 위한 변수
 	int rect_w = 0;
 	int rect_h = 0;
-
-
 	
 	// We catch any exceptions that might occur below -- see the catch statement for more details.
 	try 
@@ -110,7 +108,7 @@ int main(int argc, char *argv[])
 	}
 
 	// We've found a Myo.
-	//std::cout << "Connected to a Myo armband!" << std::endl << std::endl;
+	std::cout << "Connected to a Myo armband!" << std::endl << std::endl;
 
 	// Next we construct an instance of our DeviceListener, so that we can register it with the Hub.
 	// 마이오에서 얻은 데이터를 가공해주는 클래스
@@ -279,18 +277,19 @@ int main(int argc, char *argv[])
 		//// 좌우 카메라 컨트롤
 		if (collector.currentPose == myo::Pose::waveOut)
 		{
-			SendData(videoSocket.ClientSocket, "right", videoSocket.ToServer);rest = true;
-				//sendto(ClientSocket, right_m, sizeof(right_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+			SendData(videoSocket.ClientSocket, "right", videoSocket.ToServer);
+			rest = true;
 		}	
 		if (collector.currentPose == myo::Pose::waveIn)
 		{
-			SendData(videoSocket.ClientSocket, "left", videoSocket.ToServer);rest = true;
-				//sendto(ClientSocket, left_m, sizeof(left_m), 0, (struct sockaddr*) &ToServer, sizeof(ToServer));
+			SendData(videoSocket.ClientSocket, "left", videoSocket.ToServer);
+			rest = true;
 		}
 		// 상하 카메라 컨트롤
 		if (collector.currentPose == myo::Pose::fingersSpread && collector.pitch_w > 10)
 		{
-			SendData(videoSocket.ClientSocket, "up", videoSocket.ToServer);rest = true;
+			SendData(videoSocket.ClientSocket, "up", videoSocket.ToServer);
+			rest = true;
 		}
 		if (collector.currentPose == myo::Pose::fingersSpread && collector.pitch_w < 6)
 		{
@@ -305,14 +304,13 @@ int main(int argc, char *argv[])
 		if (collector.currentPose == myo::Pose::doubleTap && collector.roll_w <= 5)
 		{
 			collector.currentPose = myo::Pose::rest;
-			myo->lock();
-						
+			rest = true;
+			myo->lock();						
 		}
 		if (collector.currentPose == myo::Pose::doubleTap && collector.roll_w > 5)
 		{
-
+			rest = true;
 			myo->unlock(myo::Myo::unlockHold);
-
 		}
 		// 마이오의 동작을 체크해서 줌인 줌 아웃
 		if (collector.currentPose == myo::Pose::fist && collector.roll_w < 6)
@@ -353,7 +351,7 @@ int main(int argc, char *argv[])
 			case SDLK_w: // 줌 아웃
 				ZoomOut(rect_w, rect_h, 0);								
 				break;
-			case SDLK_s: // test
+			case SDLK_s: // 모터 stop
 				SendData(videoSocket.ClientSocket, "stop", videoSocket.ToServer);
 				break;
 			case SDLK_x: // 플그램 종료
