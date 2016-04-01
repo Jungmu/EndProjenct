@@ -27,6 +27,12 @@ sock.bind((UDP_IP,UDP_PORT))
 p.start(degree_x)
 p1.start(degree_y)
 
+#time.sleep(1)
+
+#p.stop()
+#p1.stop()
+
+
 
 while True:
         data,addr = sock.recvfrom(1024)
